@@ -54,8 +54,10 @@ spec:
           env:
             - name: NODE_ENV
               value: production
+
             - name: PORT
               value: "3000"
+
             - name: HOSTNAME
               value: "0.0.0.0"
 
@@ -99,11 +101,35 @@ spec:
           volumeMounts:
             - name: tmp
               mountPath: /tmp
+
             - name: next-cache
               mountPath: /app/.next/cache
 
       volumes:
         - name: tmp
           emptyDir: {}
+
         - name: next-cache
           emptyDir: {}
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: summitodoro
+  namespace: summitodoro
+  labels:
+    app.kubernetes.io/name: summitodoro
+    app.kubernetes.io/component: web
+
+spec:
+  type: LoadBalancer
+
+  selector:
+    app.kubernetes.io/name: summitodoro
+
+  ports:
+    - name: http
+      protocol: TCP
+      port: 80
+      targetPort: http
