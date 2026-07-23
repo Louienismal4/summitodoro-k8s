@@ -1,7 +1,6 @@
 import { z } from "zod";
 
 import type { FocusSession, PersistedFocusSession } from "@/types/session";
-import { createUuid } from "@/lib/uuid";
 
 const sessionSchema = z.object({
   id: z.string().min(1),
@@ -24,7 +23,7 @@ const clamp = (value: number, minimum: number, maximum: number) =>
 
 export const createFocusSession = (
   durationMs: number,
-  id = createUuid(),
+  id = crypto.randomUUID(),
 ): FocusSession => ({
   id,
   durationMs,
