@@ -152,15 +152,33 @@ pipeline {
 
         stage('Build Docker Image') {
             steps {
-                sh '''
-                    set -eu
+                withCredentials([
+                    string(
+                        credentialsId: 'supabase-url',
+                        variable: 'NEXT_PUBLIC_SUPABASE_URL'
+                    ),
+                    string(
+                        credentialsId: 'supabase-publishable-key',
+                        variable: 'NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY'
+                    ),
+                    string(
+                        credentialsId: 'summitodoro-site-url',
+                        variable: 'NEXT_PUBLIC_SITE_URL'
+                    )
+                ]) {
+                    sh '''
+                        set -eu
 
-                    docker build \
-                        --tag "$IMAGE" \
-                        --no-cache \
-                        --pull \
-                        .
-                '''
+                        docker build \
+                            --build-arg NEXT_PUBLIC_SUPABASE_URL \
+                            --build-arg NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY \
+                            --build-arg NEXT_PUBLIC_SITE_URL \
+                            --tag "$IMAGE" \
+                            --no-cache \
+                            --pull \
+                            .
+                    '''
+                }
             }
         }
 
