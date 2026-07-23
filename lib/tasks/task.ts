@@ -1,5 +1,6 @@
 import { z } from "zod";
 
+import { createUuid } from "@/lib/uuid";
 import type {
   CreateTaskInput,
   Task,
@@ -48,7 +49,7 @@ export const isTaskStatus = (value: string): value is TaskStatus =>
 export const createTask = (
   input: CreateTaskInput,
   userId: string | null,
-  id = crypto.randomUUID(),
+  id = createUuid(),
   now = new Date().toISOString(),
 ): Task => {
   const task = sanitizeTaskInput(input);
