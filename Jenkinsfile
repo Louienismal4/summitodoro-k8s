@@ -1,10 +1,6 @@
 pipeline {
     agent any
     
-    triggers {
-        githubPush()
-    }
-    
     tools {
         nodejs 'nodejs22'
     }
@@ -18,7 +14,7 @@ pipeline {
     }
 
     options {
-        skipDefaultCheckout(false)
+        skipDefaultCheckout(true)
         timestamps()
         disableConcurrentBuilds()
         buildDiscarder(logRotator(numToKeepStr: '20'))
