@@ -5,8 +5,7 @@ metadata:
   namespace: summitodoro
   labels:
     app.kubernetes.io/name: summitodoro
-  annotations:
-    nginx.ingress.kubernetes.io/proxy-body-size: "10m"
+    app.kubernetes.io/component: web
 
 spec:
   ingressClassName: nginx

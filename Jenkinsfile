@@ -203,15 +203,24 @@ pipeline {
                     restrictKubeConfigAccess: true
                 ]) {
                     sh '''
+                        set -eu
+
+                        echo "Applying Kubernetes manifests..."
+
                         kubectl apply \
                             --filename k8s/deployment.yaml \
                             --filename k8s/service.yaml \
+                            --filename k8s/ingress.yaml \
                             --namespace "$NAMESPACE"
+
+                        echo "Updating deployment image to $IMAGE..."
 
                         kubectl set image \
                             deployment/summitodoro \
                             summitodoro="$IMAGE" \
                             --namespace "$NAMESPACE"
+
+                        echo "Waiting for rollout..."
 
                         kubectl rollout status \
                             deployment/summitodoro \
@@ -230,42 +239,48 @@ pipeline {
                     restrictKubeConfigAccess: true
                 ]) {
                     sh '''
+                        set -eu
+
+                        echo "Deployment:"
                         kubectl get deployment \
                             --namespace "$NAMESPACE" \
                             --output wide
 
+                        echo "Pods:"
                         kubectl get pods \
                             --namespace "$NAMESPACE" \
                             --output wide
 
-                        kubectl get services \
+                        echo "Application Service:"
+                        kubectl get service summitodoro \
+                            --namespace "$NAMESPACE" \
+                            --output wide
+
+                        echo "Application Endpoints:"
+                        kubectl get endpoints summitodoro \
                             --namespace "$NAMESPACE"
+
+                        echo "Ingress:"
+                        kubectl get ingress summitodoro \
+                            --namespace "$NAMESPACE" \
+                            --output wide
+
+                        echo "Ingress details:"
+                        kubectl describe ingress summitodoro \
+                            --namespace "$NAMESPACE"
+
+                        echo "Ingress controller:"
+                        kubectl get pods \
+                            --namespace ingress-nginx \
+                            --selector app.kubernetes.io/component=controller \
+                            --output wide
+
+                        kubectl get service ingress-nginx-controller \
+                            --namespace ingress-nginx \
+                            --output wide
                     '''
                 }
             }
-        }
-    }
-
-    post {
-        always {
-            archiveArtifacts(
-                artifacts: 'trivy-*.txt',
-                allowEmptyArchive: true
-            )
-
-            sh 'docker logout ghcr.io || true'
-        }
-
-        success {
-            echo "Summitodoro deployed successfully: ${env.IMAGE}"
-        }
-
-        failure {
-            echo 'Summitodoro pipeline failed. Check the first failed stage.'
-        }
-
-        cleanup {
-            cleanWs()
         }
     }
 }
