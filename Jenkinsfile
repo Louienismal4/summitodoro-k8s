@@ -1,6 +1,6 @@
 pipeline {
     agent any
-    
+
     tools {
         nodejs 'nodejs22'
     }
@@ -109,6 +109,8 @@ pipeline {
         stage('File System Scan') {
             steps {
                 sh '''
+                    set -eu
+
                     trivy fs \
                         --scanners vuln,secret,misconfig \
                         --severity HIGH,CRITICAL \
@@ -124,6 +126,8 @@ pipeline {
             steps {
                 withSonarQubeEnv('sonar') {
                     sh '''
+                        set -eu
+
                         "$SCANNER_HOME/bin/sonar-scanner" \
                             -Dsonar.projectKey=summitodoro-k8s \
                             -Dsonar.projectName=Summitodoro-k8s \
@@ -150,7 +154,7 @@ pipeline {
             steps {
                 sh '''
                     set -eu
-                    
+
                     docker build \
                         --tag "$IMAGE" \
                         --no-cache \
@@ -163,6 +167,8 @@ pipeline {
         stage('Docker Image Scan') {
             steps {
                 sh '''
+                    set -eu
+
                     trivy image \
                         --severity HIGH,CRITICAL \
                         --ignore-unfixed \
@@ -184,6 +190,8 @@ pipeline {
                     )
                 ]) {
                     sh '''
+                        set -eu
+
                         echo "$GHCR_TOKEN" |
                             docker login ghcr.io \
                                 --username "$GHCR_USERNAME" \
@@ -216,14 +224,14 @@ pipeline {
                         echo "Updating deployment image to $IMAGE..."
 
                         kubectl set image \
-                            deployment/summitodoro \
-                            summitodoro="$IMAGE" \
+                            deployment/"$APP_NAME" \
+                            "$APP_NAME"="$IMAGE" \
                             --namespace "$NAMESPACE"
 
                         echo "Waiting for rollout..."
 
                         kubectl rollout status \
-                            deployment/summitodoro \
+                            deployment/"$APP_NAME" \
                             --namespace "$NAMESPACE" \
                             --timeout=180s
                     '''
@@ -241,46 +249,86 @@ pipeline {
                     sh '''
                         set -eu
 
+                        echo "Checking deployment readiness..."
+                        kubectl wait \
+                            --for=condition=Available \
+                            deployment/"$APP_NAME" \
+                            --namespace "$NAMESPACE" \
+                            --timeout=120s
+
                         echo "Deployment:"
-                        kubectl get deployment \
+                        kubectl get deployment "$APP_NAME" \
                             --namespace "$NAMESPACE" \
                             --output wide
 
                         echo "Pods:"
                         kubectl get pods \
                             --namespace "$NAMESPACE" \
+                            --selector app.kubernetes.io/name="$APP_NAME" \
                             --output wide
 
                         echo "Application Service:"
-                        kubectl get service summitodoro \
+                        kubectl get service "$APP_NAME" \
                             --namespace "$NAMESPACE" \
                             --output wide
 
                         echo "Application Endpoints:"
-                        kubectl get endpoints summitodoro \
+                        kubectl get endpoints "$APP_NAME" \
                             --namespace "$NAMESPACE"
 
                         echo "Ingress:"
-                        kubectl get ingress summitodoro \
+                        kubectl get ingress "$APP_NAME" \
                             --namespace "$NAMESPACE" \
                             --output wide
 
                         echo "Ingress details:"
-                        kubectl describe ingress summitodoro \
+                        kubectl describe ingress "$APP_NAME" \
                             --namespace "$NAMESPACE"
 
-                        echo "Ingress controller:"
+                        echo "Checking ingress controller readiness..."
+                        kubectl wait \
+                            --for=condition=Ready \
+                            pod \
+                            --selector app.kubernetes.io/component=controller \
+                            --namespace ingress-nginx \
+                            --timeout=120s
+
+                        echo "Ingress controller pod:"
                         kubectl get pods \
                             --namespace ingress-nginx \
                             --selector app.kubernetes.io/component=controller \
                             --output wide
 
+                        echo "Ingress controller service:"
                         kubectl get service ingress-nginx-controller \
                             --namespace ingress-nginx \
                             --output wide
                     '''
                 }
             }
+        }
+    }
+
+    post {
+        always {
+            archiveArtifacts(
+                artifacts: 'trivy-*.txt',
+                allowEmptyArchive: true
+            )
+
+            sh 'docker logout ghcr.io || true'
+        }
+
+        success {
+            echo "Summitodoro deployed successfully: ${env.IMAGE}"
+        }
+
+        failure {
+            echo 'Summitodoro pipeline failed. Check the first failed stage.'
+        }
+
+        cleanup {
+            cleanWs()
         }
     }
 }
