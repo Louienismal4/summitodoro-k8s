@@ -1,18 +1,3 @@
-# syntax=docker/dockerfile:1
-
-FROM node:22-bookworm-slim AS base
-WORKDIR /app
-ENV NEXT_TELEMETRY_DISABLED=1
-
-FROM base AS dependencies
-COPY package.json package-lock.json ./
-RUN npm ci
-
-FROM base AS builder
-COPY --from=dependencies /app/node_modules ./node_modules
-COPY . .
-RUN npm run build
-
 FROM node:22-bookworm-slim AS runtime
 WORKDIR /app
 
@@ -22,7 +7,18 @@ ENV HOSTNAME=0.0.0.0
 ENV PORT=3000
 
 RUN groupadd --system --gid 1001 nodejs \
-    && useradd --system --uid 1001 --gid nodejs nextjs
+    && useradd --system --uid 1001 --gid nodejs nextjs \
+    && rm -rf \
+        /usr/local/lib/node_modules/npm \
+        /usr/local/bin/npm \
+        /usr/local/bin/npx \
+        /opt/yarn-v1.22.22 \
+        /usr/local/bin/yarn \
+        /usr/local/bin/yarnpkg \
+        /usr/local/lib/node_modules/corepack \
+        /usr/local/bin/corepack \
+        /usr/local/bin/pnpm \
+        /usr/local/bin/pnpx
 
 COPY --from=builder --chown=nextjs:nodejs /app/public ./public
 COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
