@@ -6,32 +6,40 @@ metadata:
   labels:
     app.kubernetes.io/name: summitodoro
     app.kubernetes.io/component: web
+
 spec:
   replicas: 2
   revisionHistoryLimit: 3
+
   strategy:
     type: RollingUpdate
     rollingUpdate:
       maxUnavailable: 0
       maxSurge: 1
+
   selector:
     matchLabels:
       app.kubernetes.io/name: summitodoro
+
   template:
     metadata:
       labels:
         app.kubernetes.io/name: summitodoro
         app.kubernetes.io/component: web
+
     spec:
       terminationGracePeriodSeconds: 30
 
-      # Uncomment when the GHCR package is private.
-      # imagePullSecrets:
-      #   - name: ghcr-secret
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1001
+        runAsGroup: 1001
+        fsGroup: 1001
+        seccompProfile:
+          type: RuntimeDefault
 
       containers:
         - name: summitodoro
-          # Jenkins replaces this tag using `kubectl set image`.
           image: ghcr.io/louienismal4/summitodoro:initial
           imagePullPolicy: IfNotPresent
 
@@ -76,9 +84,23 @@ spec:
 
           securityContext:
             allowPrivilegeEscalation: false
-            readOnlyRootFilesystem: false
+            readOnlyRootFilesystem: true
             runAsNonRoot: true
             runAsUser: 1001
+            runAsGroup: 1001
+            privileged: false
             capabilities:
               drop:
                 - ALL
+
+          volumeMounts:
+            - name: tmp
+              mountPath: /tmp
+            - name: next-cache
+              mountPath: /app/.next/cache
+
+      volumes:
+        - name: tmp
+          emptyDir: {}
+        - name: next-cache
+          emptyDir: {}
