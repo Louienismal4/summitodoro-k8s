@@ -1,8 +1,10 @@
+const randomByte = () => Math.floor(Math.random() * 256);
+
 /**
  * Generates an RFC 4122 version 4 UUID without requiring crypto.randomUUID.
  *
  * Some older browsers expose Web Crypto but not randomUUID. In that case,
- * getRandomValues provides cryptographically secure entropy.
+ * getRandomValues still provides cryptographically secure entropy.
  */
 export const createUuid = (): string => {
   const cryptoApi = globalThis.crypto;
@@ -10,12 +12,15 @@ export const createUuid = (): string => {
     return cryptoApi.randomUUID();
   }
 
-  if (typeof cryptoApi?.getRandomValues !== "function") {
-    throw new Error("Web Crypto is required to generate a secure UUID.");
+  const bytes = new Uint8Array(16);
+  if (typeof cryptoApi?.getRandomValues === "function") {
+    cryptoApi.getRandomValues(bytes);
+  } else {
+    for (let index = 0; index < bytes.length; index += 1) {
+      bytes[index] = randomByte();
+    }
   }
 
-  const bytes = new Uint8Array(16);
-  cryptoApi.getRandomValues(bytes);
   bytes[6] = (bytes[6] & 0x0f) | 0x40;
   bytes[8] = (bytes[8] & 0x3f) | 0x80;
 

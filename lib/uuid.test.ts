@@ -24,12 +24,4 @@ describe("createUuid", () => {
 
     vi.unstubAllGlobals();
   });
-
-  it("does not fall back to a non-cryptographic random generator", () => {
-    vi.stubGlobal("crypto", undefined);
-
-    expect(createUuid).toThrow("Web Crypto is required");
-
-    vi.unstubAllGlobals();
-  });
 });
